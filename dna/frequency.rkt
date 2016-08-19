@@ -1,0 +1,65 @@
+#lang typed/racket
+
+(provide frequent-word)
+
+(require "../util/type.rkt")
+
+(define (dna-atom-to-index [atom : DnaAtom])
+  (case atom
+    [(A) 0]
+    [(T) 1]
+    [(C) 2]
+    [(G) 3]))
+
+(define (index-to-dna-atom [index : Integer])
+  (case index
+    [(0) 'A]
+    [(1) 'T]
+    [(2) 'C]
+    [(3) 'G]
+    [else (error "Not a correct index")]))
+
+(: dna-to-index (->* (Dna) (Integer Integer) Integer))
+(define (dna-to-index dna [pos 0] [length (vector-length dna)])
+  (define (dna-to-index-iter [offset : Integer]) : Integer
+    (if (< offset pos)
+        0
+        (+ (dna-atom-to-index (vector-ref dna offset)) (* 4 (dna-to-index-iter (- offset 1))))))
+  (dna-to-index-iter (+ pos (- length 1))))
+
+(: index-to-dna (-> Integer Integer Dna))
+(define (index-to-dna index length)
+  (let ([vect ((inst make-vector DnaAtom) length 'A)])
+    (define (index-to-dna-iter [pos : Integer] [left : Integer]) : Dna
+      (if (>= pos length)
+          vect
+          (begin
+            (vector-set! vect (- length pos 1) (index-to-dna-atom (modulo left 4)))
+            (index-to-dna-iter (+ 1 pos) (quotient left 4)))))
+    (index-to-dna-iter 0 index)))
+
+(define-type Hash-Slab (Pairof Integer Integer))
+(define-type Frequent-Word (Pairof Dna Integer))
+
+
+(: frequent-word (-> Dna Positive-Integer (Listof Frequent-Word)))
+(define (frequent-word dna length)
+  (let ([vect ((inst make-vector (U Zero Hash-Slab)) (expt 4 length))]
+        [dna-length (vector-length dna)]
+        [vector-filter-t (inst vector-filter (U Zero Hash-Slab) Hash-Slab)]
+        [sort-t (inst sort (Pairof Integer Integer) Integer)]
+        [vector-set-t! (inst vector-set! (U Zero Hash-Slab))])
+    (define (frequent-word-iter [pos : Integer]) : (Listof Frequent-Word)
+      (if (> pos (- dna-length length))
+          (let* ([sorted-list (sort-t (vector->list (vector-filter-t pair? vect)) > #:key cdr)]
+                 [max-count (cdr (first sorted-list))])
+            (map (lambda  ([slab : Hash-Slab]) : Frequent-Word
+                   (cons (index-to-dna (car slab) length) (cdr slab)))
+                 (takef sorted-list (lambda ([k-mer-spec : Hash-Slab]) (>= (cdr k-mer-spec) (- max-count 1))))))
+          (let* ([index (dna-to-index dna pos length)]
+                 [count (vector-ref vect index)])
+            (if (pair? count)
+                (vector-set-t! vect index (cons index (+ 1 (cdr count))))
+                (vector-set-t! vect index (cons index 1)))
+            (frequent-word-iter (+ 1 pos)))))
+    (frequent-word-iter 0)))
