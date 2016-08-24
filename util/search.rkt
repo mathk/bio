@@ -1,6 +1,7 @@
 #lang typed/racket
 
-(provide kmp-search)
+(provide kmp-search
+         kmp-table)
 
 (: kmp-table (All (A) (-> (Vectorof A) (Vectorof Integer))))
 (define (kmp-table pattern)

@@ -4,6 +4,7 @@
 
 (require "../util/type.rkt")
 
+
 (define (dna-atom-to-index [atom : DnaAtom])
   (case atom
     [(A) 0]
@@ -63,3 +64,28 @@
                 (vector-set-t! vect index (cons index 1)))
             (frequent-word-iter (+ 1 pos)))))
     (frequent-word-iter 0)))
+
+(define (neighbors [pattern : Dna]
+                   [distance : Integer]) : (Listof Dna)
+  (let ([pattern-length (vector-length pattern)]
+        [current-neighbors ((inst make-hash Integer (Listof Dna)) (list (cons 0 (cons pattern '()))))]
+        [alter-nucleotide ((inst make-hash DnaAtom (List DnaAtom DnaAtom DnaAtom)) '( (A . (T C G)) (T . (A C G)) (C . (A T G)) (G . (A T C))))])
+    (let neighbors-iter ([pos : Integer 0])
+      (if (>= pos pattern-length)
+        (apply append (hash-values current-neighbors))
+        (begin
+          (for* ([key (hash-keys current-neighbors)])
+            (let* ([new-key (+ 1 key)]
+                 [value (hash-ref current-neighbors key)]
+                 [new-value (hash-ref current-neighbors new-key (lambda [] : (Listof Dna) '()))])
+            (when (< key distance)
+              (hash-set! current-neighbors new-key 
+                         (append (apply append (map (lambda ([previous-neighbor : Dna]) : (Listof Dna)
+                                                      (map (lambda ([nucleotide : DnaAtom]) : Dna
+                                                             (let ([new (vector-copy previous-neighbor)])
+                                                               (vector-set! new pos nucleotide)
+                                                               new)) (hash-ref alter-nucleotide (vector-ref pattern pos))
+                                                      )) value))
+                                                    new-value)))))
+            (neighbors-iter (+ 1 pos)))))))
+
