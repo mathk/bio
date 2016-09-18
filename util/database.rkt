@@ -1,6 +1,7 @@
 #lang typed/racket
 
-(provide string->dna)
+(provide string->dna
+         strings->dnas)
 
 (require racket/format 
          "type.rkt")
@@ -15,3 +16,10 @@
             [(#\G) 'G]
             [else (error "Not a dna alphabet " a)]))
         (remove* '(#\newline) (string->list text)))))
+
+(define strings->dnas
+  (case-lambda
+    [([textes : (Listof String)])
+     (map string->dna textes)]
+    [(textes : String *)
+     (map string->dna textes)]))

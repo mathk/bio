@@ -2,42 +2,10 @@
 
 (provide frequent-word)
 
-(require "../util/type.rkt")
-
-
-(define (dna-atom-to-index [atom : DnaAtom])
-  (case atom
-    [(A) 0]
-    [(T) 1]
-    [(C) 2]
-    [(G) 3]))
-
-(define (index-to-dna-atom [index : Integer])
-  (case index
-    [(0) 'A]
-    [(1) 'T]
-    [(2) 'C]
-    [(3) 'G]
-    [else (error "Not a correct index")]))
-
-(: dna-to-index (->* (Dna) (Integer Integer) Integer))
-(define (dna-to-index dna [pos 0] [length (vector-length dna)])
-  (define (dna-to-index-iter [offset : Integer]) : Integer
-    (if (< offset pos)
-        0
-        (+ (dna-atom-to-index (vector-ref dna offset)) (* 4 (dna-to-index-iter (- offset 1))))))
-  (dna-to-index-iter (+ pos (- length 1))))
-
-(: index-to-dna (-> Integer Integer Dna))
-(define (index-to-dna index length)
-  (let ([vect ((inst make-vector DnaAtom) length 'A)])
-    (define (index-to-dna-iter [pos : Integer] [left : Integer]) : Dna
-      (if (>= pos length)
-          vect
-          (begin
-            (vector-set! vect (- length pos 1) (index-to-dna-atom (modulo left 4)))
-            (index-to-dna-iter (+ 1 pos) (quotient left 4)))))
-    (index-to-dna-iter 0 index)))
+(require "../util/type.rkt"
+         "../util/database.rkt"
+         "util.rkt"
+         )
 
 (define-type Hash-Slab (Pairof Integer Integer))
 (define-type Frequent-Word (Pairof Dna Integer))
@@ -72,7 +40,7 @@
         [alter-nucleotide ((inst make-hash DnaAtom (List DnaAtom DnaAtom DnaAtom)) '( (A . (T C G)) (T . (A C G)) (C . (A T G)) (G . (A T C))))])
     (let neighbors-iter ([pos : Integer 0])
       (if (>= pos pattern-length)
-        (apply append (hash-values current-neighbors))
+        (set->list (list->set (apply append (hash-values current-neighbors))))
         (begin
           (for* ([key (hash-keys current-neighbors)])
             (let* ([new-key (+ 1 key)]
@@ -88,4 +56,8 @@
                                                       )) value))
                                                     new-value)))))
             (neighbors-iter (+ 1 pos)))))))
+
+(format-dnas (neighbors (string->dna "TAAGTGTTGA") 2))
+
+
 
